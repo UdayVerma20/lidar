@@ -187,7 +187,7 @@ public:
 
                 if ( //checks
                 1
-                // (distance >=0.04 && distance < 0.32 )
+                && (distance >=0.04 && distance < 0.32 )
                 // && (Iter_Cluster.Avg.z + heightlidar < 1.5)
                 // && (Iter_Cluster.Avg.z + heightlidar < 0.2)
                 // // // && (Iter_Cluster.Avg.z + LidarHeight > MinHeight)
@@ -197,7 +197,7 @@ public:
                 // // && (Iter_Cluster.clustersize > 0.2 * expected_points)
                 // && ((Iter_Cluster.Right.y - Iter_Cluster.Left.y)*(Iter_Cluster.Right.y - Iter_Cluster.Left.y) + (Iter_Cluster.Right.x - Iter_Cluster.Left.x)*(Iter_Cluster.Right.x - Iter_Cluster.Left.x) < MaxWidth*MaxWidth)
                 // && ((Iter_Cluster.Back.y - Iter_Cluster.Front.y)*(Iter_Cluster.Back.y - Iter_Cluster.Front.y) + (Iter_Cluster.Back.x - Iter_Cluster.Front.x)*(Iter_Cluster.Back.x - Iter_Cluster.Front.x) < MaxLen*MaxLen)
-                && (Iter_Cluster.clustersize > MinPoints)
+                // && (Iter_Cluster.clustersize > MinPoints)
                 // && (Iter_Cluster.Avg.x*Iter_Cluster.Avg.x + Iter_Cluster.Avg.y*Iter_Cluster.Avg.y < 30)
                 // && (curr_colour == 0)
                 ){

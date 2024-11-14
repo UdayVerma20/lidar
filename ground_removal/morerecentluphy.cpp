@@ -26,7 +26,7 @@ using namespace std;
 #define pnaught 35
 #define tau 5
 #define distancethreshold 0.1 //0.06
-#define leftmax 2.0
+#define leftmax 2.5
 #define rightmax 2.0
 #define topmax 1.0
 float sectorangle = M_PI/48; //sector angle has to divide 2*pi/3 even times
@@ -205,7 +205,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   for(int index=0; index<cloudtomanipulate->points.size(); index++){
 
     //trimming view area
-    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax || ((cloudtomanipulate->points)[index].z <-heightlidar)) continue;
+    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax) continue;
 
     int ring = pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength;
     if(ring>=planespreadbeforering) continue;
@@ -259,7 +259,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   for(int index=0; index<cloudtomanipulate->points.size(); index++){
 
     //trimming view area
-    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax || ((cloudtomanipulate->points)[index].z <-heightlidar)) continue;
+    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax) continue;
 
     int ring = static_cast<int>(pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength);
     if(ring>=planespreadbeforering) continue;
