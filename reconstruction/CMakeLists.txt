@@ -132,8 +132,8 @@ include_directories(
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-add_executable(reconstruct reconstruct.cpp)
-target_link_libraries(reconstruct ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+# add_executable(reconstruct reconstruct.cpp)
+# target_link_libraries(reconstruct ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}

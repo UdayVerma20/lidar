@@ -76,8 +76,8 @@ public:
     ClusterExtractionNode(ros::NodeHandle& nh) :
         nh_(nh)
     {
-        sub_ = nh_.subscribe("/nogroundcloud", 1, &ClusterExtractionNode::pointCloudCallback, this);
-        pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/clusters", 1);  // Change topic to indicate centroids
+        sub_ = nh_.subscribe("/ConeCloud", 1, &ClusterExtractionNode::pointCloudCallback, this);
+        pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/CAR", 1);  // Change topic to indicate centroids
     }
 
     void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
@@ -91,17 +91,17 @@ public:
         // ROS_INFO("Converted to PCL PointCloud, number of points: %zu", cloud->points.size());
 
         // Optionally downsample the cloud
-        pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
-        voxel_grid.setInputCloud(cloud);
-        voxel_grid.setLeafSize(0.01f, 0.01f, 0.01f);  // Adjust leaf size as necessary
-        voxel_grid.filter(*downsampled_cloud);
+        // pcl::PointCloud<pcl::PointXYZ>::Ptr downsampled_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+        // pcl::VoxelGrid<pcl::PointXYZ> voxel_grid;
+        // voxel_grid.setInputCloud(cloud);
+        // voxel_grid.setLeafSize(0.03f, 0.03f, 0.03f);  // Adjust leaf size as necessary
+        // voxel_grid.filter(*downsampled_cloud);
         // ROS_INFO("Downsampled point cloud, number of points: %zu", downsampled_cloud->points.size());
 
         // Apply DBSCAN clustering
-        DBSCAN dbscan(0.5, 8);  // Increase eps and minPts for larger, more stable clusters
+        DBSCAN dbscan(2, 10);  // Increase eps and minPts for larger, more stable clusters
         std::vector<std::vector<int>> clusters;
-        dbscan.cluster(downsampled_cloud, clusters);
+        dbscan.cluster(cloud, clusters);
 
         if (clusters.empty())
         {
@@ -118,15 +118,15 @@ public:
             float sum_x = 0.0, sum_y = 0.0, sum_z = 0.0, max_x = -10000.f, min_x = 10000.f, max_y = -10000.f, min_y = 10000.f, max_z = -10000.f, min_z = 10000.f;
             for (const auto& idx : cluster)
             {
-                sum_x += downsampled_cloud->points[idx].x;
-                if(max_x<downsampled_cloud->points[idx].x) max_x = downsampled_cloud->points[idx].x;
-                if(min_x>downsampled_cloud->points[idx].x) min_x = downsampled_cloud->points[idx].x;
-                sum_y += downsampled_cloud->points[idx].y;
-                if(max_y<downsampled_cloud->points[idx].y) max_y = downsampled_cloud->points[idx].y;
-                if(min_y>downsampled_cloud->points[idx].y) min_y = downsampled_cloud->points[idx].y;
-                sum_z += downsampled_cloud->points[idx].z;
-                if(max_z<downsampled_cloud->points[idx].z) max_z = downsampled_cloud->points[idx].z;
-                if(min_z>downsampled_cloud->points[idx].z) min_z = downsampled_cloud->points[idx].z;
+                sum_x += cloud->points[idx].x;
+                if(max_x<cloud->points[idx].x) max_x = cloud->points[idx].x;
+                if(min_x>cloud->points[idx].x) min_x = cloud->points[idx].x;
+                sum_y += cloud->points[idx].y;
+                if(max_y<cloud->points[idx].y) max_y = cloud->points[idx].y;
+                if(min_y>cloud->points[idx].y) min_y = cloud->points[idx].y;
+                sum_z += cloud->points[idx].z;
+                if(max_z<cloud->points[idx].z) max_z = cloud->points[idx].z;
+                if(min_z>cloud->points[idx].z) min_z = cloud->points[idx].z;
             }
 
             // Compute the centroid of the cluster
@@ -137,13 +137,13 @@ public:
 
             float base_area = (max_x-min_x)*(max_x-min_x) + (max_y-min_y)*(max_y-min_y);
             
-            if(centroid.z<=0.3-heightlidar //&& centroid.z>=-heightlidar 
+            // if(centroid.z<=0.3-heightlidar //&& centroid.z>=-heightlidar 
             // && max_z < 0.35-heightlidar 
-            && base_area >=0.0 && base_area <=0.2
-            ){
+            // && base_area >=0.0 && base_area <=0.2
+            // ){
                 std::cout << centroid.z+heightlidar << std::endl;
                 centroids_cloud->points.push_back(centroid);
-            }
+            // }
             
             // ROS_INFO("Cluster %d centroid: [%f, %f, %f] with %lu points.", cluster_id++, centroid.x, centroid.y, centroid.z, cluster.size());
         }

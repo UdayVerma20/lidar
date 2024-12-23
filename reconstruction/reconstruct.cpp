@@ -58,7 +58,7 @@ int main(int argc, char **argv)
   pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>> ("reconstructedcluster", 1);
 
   ros::Subscriber subcluster = nh.subscribe ("Clusters", 1, cluster_cb);
-  ros::Subscriber subcloud = nh.subscribe ("rslidar_points", 1, cloud_cb);
+  ros::Subscriber subcloud = nh.subscribe ("velodyne_points", 1, cloud_cb);
   
   ros::spin();
   return 0;

@@ -19,16 +19,17 @@ using namespace std;
 
 #define ringlength 0.2 //1.5
 #define startatring 0
-#define planespreadbeforering 120
+#define planespreadbeforering 70
 #define lidarframe "rslidar"
 
 //tune-able parameters
-#define pnaught 35
-#define tau 5
-#define distancethreshold 0.06
-#define leftmax 5
-#define rightmax 5
-#define topmax 1.0
+#define pnaught 15
+#define tau 10
+#define distancethreshold 0.1 //0.06
+#define leftmax 5.0
+#define rightmax 5.0
+#define topmax 2.0
+#define varanglecheck  15 //degrees
 float sectorangle = M_PI/48; //sector angle has to divide 2*pi/3 even times
 
 int markerid = 0;
@@ -62,6 +63,12 @@ storeData (int bin, float a, float b, float c, float d){
   ground_msg.data.push_back(temp);
   temp.data = {float(bin+1),a,b,c,d};
   ground_msg.data.push_back(temp);
+}
+
+bool
+angleCheck (float a1, float b1, float c1, float a2, float b2, float c2){
+  if(((a1*a2 + b1*b2 + c1*c2)/(pow((a1*a1 + b1*b1 + c1*c1)*(a2*a2 + b2*b2 + c2*c2), 0.5))) >= cos(varanglecheck*(M_PI/180))) return 1;
+  return 0;
 }
 
 void visualise(){
@@ -148,16 +155,16 @@ void
 propogate (pcl::PointXYZI lastpoint, int bin){
   if(int(bin/static_cast<int>(round(2*M_PI/(3*sectorangle))))>=planespreadbeforering) return;
   if(bin_min_points.find(bin)==bin_min_points.end() || bin_min_points.find(bin+1)==bin_min_points.end()){
-    if(bin_min_points.find(bin)!=bin_min_points.end()){
-        storeData(bin, 0.f, 0.f, 1.f, -bin_min_points[bin].z);
-        lastpoint = bin_min_points[bin];
-    }
-    else if(bin_min_points.find(bin+1)!=bin_min_points.end()){
-        storeData(bin, 0.f, 0.f, 1.f, -bin_min_points[bin+1].z);
-        lastpoint = bin_min_points[bin+1];
-    }else{
+    // if(bin_min_points.find(bin)!=bin_min_points.end()){
+    //     storeData(bin, 0.f, 0.f, 1.f, -bin_min_points[bin].z);
+    //     lastpoint = bin_min_points[bin];
+    // }
+    // else if(bin_min_points.find(bin+1)!=bin_min_points.end()){
+    //     storeData(bin, 0.f, 0.f, 1.f, -bin_min_points[bin+1].z);
+    //     lastpoint = bin_min_points[bin+1];
+    // }else{
         storeData(bin, 0.f, 0.f, 1.f, heightlidar);
-    }
+    // }
     propogate(lastpoint, bin+static_cast<int>(round(2*M_PI/(3*sectorangle))));
     return;
   }
@@ -179,6 +186,15 @@ propogate (pcl::PointXYZI lastpoint, int bin){
   float b = x3*z2 + x1*z3 + x2*z1 - (x3*z1 + x1*z2 + x2*z3);
   float c = x2*y3 + x1*y2 + x3*y1 - (x2*y1 + x1*y3 + x3*y2);
   float d = -x1*a - y1*b - z1*c;
+ 
+  if(bin>5*static_cast<int>(round(2*M_PI/(3*sectorangle)))){
+    if(!angleCheck(a, b, c, ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][0], ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][1], ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][2])){
+      a = ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][0];
+      b = ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][1];
+      c = ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][2];
+      d = ground[bin-static_cast<int>(round(2*M_PI/(3*sectorangle)))][3];
+    }
+  }
   storeData(bin, a, b, c, d);
   lastpoint.x = (x2+x3)/2; lastpoint.y = (y2+y3)/2; lastpoint.z = (z2+z3)/2;
   propogate(lastpoint, bin+static_cast<int>(round(2*M_PI/(3*sectorangle))));
@@ -187,7 +203,6 @@ propogate (pcl::PointXYZI lastpoint, int bin){
 
 void
 cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
-
 {
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::PointCloud<pcl::PointXYZI>::Ptr cloudtomanipulate(new pcl::PointCloud<pcl::PointXYZI>);
@@ -285,7 +300,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
 int
 main (int argc, char** argv)
 {
-  ros::init (argc, argv, "luphynew");
+  ros::init (argc, argv, "GroundRemoval");
   ros::NodeHandle nh;
   non_ground_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>> ("ConeCloud", 1);
   ground_pub = nh.advertise<ground_removal::arrofarr>("ground", 1);

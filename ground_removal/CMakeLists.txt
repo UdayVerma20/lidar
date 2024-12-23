@@ -138,6 +138,9 @@ target_link_libraries(newluphy ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 add_executable(morerecentluphy morerecentluphy.cpp)
 target_link_libraries(morerecentluphy ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(evenmorerecentluphy evenmorerecentluphy.cpp)
+target_link_libraries(evenmorerecentluphy ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(ransac ransac.cpp)
 target_link_libraries(ransac ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
