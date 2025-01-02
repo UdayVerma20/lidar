@@ -76,18 +76,21 @@ public:
     ClusterExtractionNode(ros::NodeHandle& nh) :
         nh_(nh)
     {
-        sub_ = nh_.subscribe("/ConeCloud", 1, &ClusterExtractionNode::pointCloudCallback, this);
+        sub_ = nh_.subscribe("/rslidar_points", 1, &ClusterExtractionNode::pointCloudCallback, this);
         pub_ = nh_.advertise<sensor_msgs::PointCloud2>("/CAR", 1);  // Change topic to indicate centroids
     }
 
     void pointCloudCallback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg)
     {
         // ROS_INFO("Received a point cloud");
-
+        
         // Convert the ROS PointCloud2 message to PCL PointCloud
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
         pcl::fromROSMsg(*cloud_msg, *cloud);
+        std::vector<int> indices;
 
+        // Remove NaN values
+        pcl::removeNaNFromPointCloud(*cloud, *cloud, indices);
         // ROS_INFO("Converted to PCL PointCloud, number of points: %zu", cloud->points.size());
 
         // Optionally downsample the cloud
@@ -99,7 +102,7 @@ public:
         // ROS_INFO("Downsampled point cloud, number of points: %zu", downsampled_cloud->points.size());
 
         // Apply DBSCAN clustering
-        DBSCAN dbscan(2, 10);  // Increase eps and minPts for larger, more stable clusters
+        DBSCAN dbscan(1, 10);  // Increase eps and minPts for larger, more stable clusters
         std::vector<std::vector<int>> clusters;
         dbscan.cluster(cloud, clusters);
 

@@ -26,8 +26,8 @@ using namespace std;
 #define pnaught 35
 #define tau 5
 #define distancethreshold 0.06
-#define leftmax 5
-#define rightmax 5
+#define leftmax 2
+#define rightmax 2
 #define topmax 1.0
 float sectorangle = M_PI/48; //sector angle has to divide 2*pi/3 even times
 
