@@ -140,6 +140,9 @@ target_link_libraries(custom ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
 add_executable(customwithpc customwithpc.cpp)
 target_link_libraries(customwithpc ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+# add_executable(customsim customsim.cpp)
+# target_link_libraries(customsim ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/ground_removal.cpp

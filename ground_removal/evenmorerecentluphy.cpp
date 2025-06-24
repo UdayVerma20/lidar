@@ -11,6 +11,7 @@
 #include <pcl/filters/voxel_grid.h>
 #include<ground_removal/arr.h>
 #include<ground_removal/arrofarr.h>
+#include<clustering/Coordinates.h>
 #include<bits/stdc++.h>
 using namespace std;
 
@@ -31,7 +32,11 @@ using namespace std;
 #define topmax 2.0
 #define varanglecheck  15 //degrees
 float sectorangle = M_PI/48; //sector angle has to divide 2*pi/3 even times
-
+// #define trackwidth 3
+// float leftmax = trackwidth/2;
+// float rightmax = trackwidth/2;
+float car_theta = 0;
+float car_y = 0;
 int markerid = 0;
 ros::Publisher non_ground_pub;
 ros::Publisher ground_pub;
@@ -55,6 +60,11 @@ pcl::PointXYZI lidarpoint;
 ground_removal::arrofarr ground_msg ;
 ground_removal::arr temp;
 
+void cc_cb(const clustering::Coordinates& CarCoordinate){
+  car_y = CarCoordinate.y;
+  car_theta = CarCoordinate.z;
+}
+
 void
 storeData (int bin, float a, float b, float c, float d){
   ground[bin] = {a, b, c, d};
@@ -68,6 +78,15 @@ storeData (int bin, float a, float b, float c, float d){
 bool
 angleCheck (float a1, float b1, float c1, float a2, float b2, float c2){
   if(((a1*a2 + b1*b2 + c1*c2)/(pow((a1*a1 + b1*b1 + c1*c1)*(a2*a2 + b2*b2 + c2*c2), 0.5))) >= cos(varanglecheck*(M_PI/180))) return 1;
+  return 0;
+}
+
+bool pointoutofrange(pcl::PointXYZI point){
+  if((point.y*cos(car_theta)+point.x*sin(car_theta)+car_y)>leftmax || 
+  (point.y*cos(car_theta)+point.x*sin(car_theta)-car_y)<-rightmax || 
+  point.z >topmax) {
+    return 1;
+  }
   return 0;
 }
 
@@ -220,7 +239,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   for(int index=0; index<cloudtomanipulate->points.size(); index++){
 
     //trimming view area
-    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax) continue;
+    if (pointoutofrange(cloudtomanipulate->points[index])) continue;
 
     int ring = pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength;
     if(ring>=planespreadbeforering) continue;
@@ -274,7 +293,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   for(int index=0; index<cloudtomanipulate->points.size(); index++){
 
     //trimming view area
-    if((cloudtomanipulate->points)[index].y >leftmax || (cloudtomanipulate->points)[index].y<-rightmax || (cloudtomanipulate->points)[index].z >topmax) continue;
+    if (pointoutofrange(cloudtomanipulate->points[index])) continue;
 
     int ring = static_cast<int>(pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength);
     if(ring>=planespreadbeforering) continue;
@@ -305,6 +324,7 @@ main (int argc, char** argv)
   non_ground_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>> ("ConeCloud", 1);
   ground_pub = nh.advertise<ground_removal::arrofarr>("ground", 1);
   marker_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker", 1);
+  ros::Subscriber car_cc_sub = nh.subscribe ("CarCoordinate", 1, cc_cb);
   ros::Subscriber sub = nh.subscribe ("rslidar_points", 1, cloud_cb);
   ros::spin ();
 }

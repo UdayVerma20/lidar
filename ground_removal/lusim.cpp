@@ -15,20 +15,20 @@
 using namespace std;
 
 //parameters
-#define heightlidar 0.25 //0.188
+#define heightlidar 0.188 //0.25
 
 #define ringlength 0.2 //1.5
 #define startatring 0
 #define planespreadbeforering 120
-#define lidarframe "rslidar"
+#define lidarframe "velodyne"
 
 //tune-able parameters
-#define pnaught 35
-#define tau 5
-#define distancethreshold 0.06
-#define leftmax 5
-#define rightmax 3
-#define topmax 1.0
+#define pnaught 2
+#define tau 1
+#define distancethreshold 0.03
+#define leftmax 10
+#define rightmax 10
+#define topmax 3.0
 float sectorangle = M_PI/48; //sector angle has to divide 2*pi/3 even times
 
 int markerid = 0;
@@ -48,7 +48,7 @@ public:
 vector<vector<pcl::PointXYZI>> visualisationlist;
 unordered_map<int, priority_queue<pcl::PointXYZI, vector<pcl::PointXYZI>, ComparePoints>> bin_max_points;
 std::unordered_map<int, pcl::PointXYZI> bin_min_points;
-vector<vector<float>> ground(static_cast<int>(round(2*M_PI/(3*sectorangle)))*planespreadbeforering, vector<float>(4, 0));
+vector<vector<float>> ground(static_cast<int>(round(M_PI/(sectorangle)))*planespreadbeforering, vector<float>(4, 0));
 pcl::PointXYZI lidarpoint;
 
 ground_removal::arrofarr ground_msg ;
@@ -81,10 +81,10 @@ void visualise(){
     ringmarker.scale.x = 0.005;
     ringmarker.color.r = 1.0;
     ringmarker.color.a = 1.0;
-    for(int j=0; j<13; j++){
+    for(int j=0; j<19; j++){
       geometry_msgs::Point ringpoint;
-      ringpoint.x = i*ringlength*sin(j*M_PI/18 + M_PI/6);
-      ringpoint.y = -i*ringlength*cos(j*M_PI/18 + M_PI/6);
+      ringpoint.x = i*ringlength*sin(j*M_PI/18);
+      ringpoint.y = -i*ringlength*cos(j*M_PI/18);
       ringpoint.z = -heightlidar;
       ringmarker.points.push_back(ringpoint);
     }
@@ -92,7 +92,7 @@ void visualise(){
   }
 
   //making sectors
-  for(int i=0; i<=static_cast<int>(round(2*M_PI/(3*sectorangle))); i++){
+  for(int i=0; i<=static_cast<int>(round(M_PI/(sectorangle))); i++){
     visualization_msgs::Marker ringmarker;
     ringmarker.header.frame_id = lidarframe;
     ringmarker.header.stamp = ros::Time::now();
@@ -111,7 +111,7 @@ void visualise(){
     sectorpoint1.x = 0;sectorpoint1.y=0;sectorpoint1.z=-heightlidar;
     ringmarker.points.push_back(sectorpoint1);
     geometry_msgs::Point sectorpoint2;
-    sectorpoint2.x = planespreadbeforering*ringlength*sin(i*sectorangle + M_PI/6);sectorpoint2.y=-planespreadbeforering*ringlength*cos(i*sectorangle + M_PI/6);sectorpoint2.z=-heightlidar;
+    sectorpoint2.x = planespreadbeforering*ringlength*sin(i*sectorangle);sectorpoint2.y=-planespreadbeforering*ringlength*cos(i*sectorangle);sectorpoint2.z=-heightlidar;
     ringmarker.points.push_back(sectorpoint2);
     visualisationarray.markers.push_back(ringmarker);
   }
@@ -146,7 +146,7 @@ void visualise(){
 
 void
 propogate (pcl::PointXYZI lastpoint, int bin){
-  if(int(bin/static_cast<int>(round(2*M_PI/(3*sectorangle))))>=planespreadbeforering) return;
+  if(int(bin/static_cast<int>(round(M_PI/(sectorangle))))>=planespreadbeforering) return;
   if(bin_min_points.find(bin)==bin_min_points.end() || bin_min_points.find(bin+1)==bin_min_points.end()){
     if(bin_min_points.find(bin)!=bin_min_points.end()){
         storeData(bin, 0.f, 0.f, 1.f, -bin_min_points[bin].z);
@@ -158,7 +158,7 @@ propogate (pcl::PointXYZI lastpoint, int bin){
     }else{
         storeData(bin, 0.f, 0.f, 1.f, heightlidar);
     }
-    propogate(lastpoint, bin+static_cast<int>(round(2*M_PI/(3*sectorangle))));
+    propogate(lastpoint, bin+static_cast<int>(round(M_PI/(sectorangle))));
     return;
   }
   float x1 = lastpoint.x;
@@ -181,7 +181,7 @@ propogate (pcl::PointXYZI lastpoint, int bin){
   float d = -x1*a - y1*b - z1*c;
   storeData(bin, a, b, c, d);
   lastpoint.x = (x2+x3)/2; lastpoint.y = (y2+y3)/2; lastpoint.z = (z2+z3)/2;
-  propogate(lastpoint, bin+static_cast<int>(round(2*M_PI/(3*sectorangle))));
+  propogate(lastpoint, bin+static_cast<int>(round(M_PI/(sectorangle))));
 }
 
 
@@ -209,11 +209,11 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
 
     int ring = pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength;
     if(ring>=planespreadbeforering) continue;
-    float angle = atan2((cloudtomanipulate->points)[index].x, -(cloudtomanipulate->points)[index].y) - M_PI/6;
-    if(angle >=2*M_PI/3|| angle <0) continue;
+    float angle = atan2((cloudtomanipulate->points)[index].x, -(cloudtomanipulate->points)[index].y);
+    if(angle >=M_PI|| angle <0) continue;
 
     //this key starts from 0 from right direction and denotes the bin number. It increases as we move towards left or farther away from lidar
-    int key = static_cast<int>((angle)/(sectorangle)) + static_cast<int>(round(2*M_PI/(3*sectorangle)))*ring;
+    int key = static_cast<int>((angle)/(sectorangle)) + static_cast<int>(round(M_PI/(sectorangle)))*ring;
 
     //number of points to take avg of
     int maxpoints = floor(pnaught*pow(M_E, -ring/tau))+1;
@@ -246,7 +246,7 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
   }
 
   //propogating the planes through all the rings
-  for(int i=static_cast<int>(round(2*M_PI/(3*sectorangle)))*startatring; i<static_cast<int>(round(2*M_PI/(3*sectorangle)))*(startatring+1); i+=2){
+  for(int i=static_cast<int>(round(M_PI/(sectorangle)))*startatring; i<static_cast<int>(round(M_PI/(sectorangle)))*(startatring+1); i+=2){
     propogate(lidarpoint, i);
    
   }
@@ -263,10 +263,10 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
 
     int ring = static_cast<int>(pow(pow((cloudtomanipulate->points)[index].x, 2)+pow((cloudtomanipulate->points)[index].y, 2), 0.5)/ringlength);
     if(ring>=planespreadbeforering) continue;
-    float angle = atan2((cloudtomanipulate->points)[index].x, -(cloudtomanipulate->points)[index].y) - M_PI/6;
-    if(angle >=2*M_PI/3|| angle <0) continue;
+    float angle = atan2((cloudtomanipulate->points)[index].x, -(cloudtomanipulate->points)[index].y);
+    if(angle >=M_PI|| angle <0) continue;
 
-    int key = static_cast<int>((angle)/(sectorangle)) + static_cast<int>(round(2*M_PI/(3*sectorangle)))*ring;
+    int key = static_cast<int>((angle)/(sectorangle)) + static_cast<int>(round(M_PI/(sectorangle)))*ring;
 
     float denominator = pow(pow(ground[key][0], 2) + pow(ground[key][1], 2) + pow(ground[key][2], 2), 0.5);
     float distance = abs((cloudtomanipulate->points)[index].x*ground[key][0] + (cloudtomanipulate->points)[index].y*ground[key][1] + (cloudtomanipulate->points)[index].z*ground[key][2] + ground[key][3])/denominator;
@@ -285,11 +285,11 @@ cloud_cb (const sensor_msgs::PointCloud2ConstPtr& input)
 int
 main (int argc, char** argv)
 {
-  ros::init (argc, argv, "luphynew");
+  ros::init (argc, argv, "lusim");
   ros::NodeHandle nh;
   non_ground_pub = nh.advertise<pcl::PointCloud<pcl::PointXYZI>> ("ConeCloud", 1);
   ground_pub = nh.advertise<ground_removal::arrofarr>("ground", 1);
   marker_pub = nh.advertise<visualization_msgs::MarkerArray>("visualization_marker", 1);
-  ros::Subscriber sub = nh.subscribe ("rslidar_points", 1, cloud_cb);
+  ros::Subscriber sub = nh.subscribe ("velodyne_points", 1, cloud_cb);
   ros::spin ();
 }

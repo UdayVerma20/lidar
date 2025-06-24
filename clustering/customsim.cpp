@@ -14,8 +14,8 @@
 #include<bits/stdc++.h>
 #include <pcl_ros/point_cloud.h>
 using namespace std;
-#define heightlidar 0.55 
-#define lidarframe "rslidar" //"rslidar"
+#define heightlidar 0.188
+#define lidarframe "velodyne"
 #define sectorangle M_PI/48
 #define planespreadbeforering 70
 #define ringlength 0.2
@@ -25,14 +25,14 @@ using namespace std;
 #define MinHeight 0.05
 // #define MinHeight 0.1 //0.2
 // #define MaxPoints 2000
-#define MinPoints 3
+#define MinPoints 1
 // #define MaxLen 1 //0.7
 #define MaxWidth 0.6
 #define MaxLen 0.5
 
 //thresholds
 float EuclideanThreshold =  0.1;
-float CentroidThreshold = 0.2;
+float CentroidThreshold = 0.3;
 
 unordered_map<int, vector<float>> ground;
 pcl::PointXYZI lidarpoint;
@@ -72,9 +72,9 @@ class Clustering
 public:
     Clustering(ros::NodeHandle ClusteringHandle){
         lidarpoint.x = 0.f; lidarpoint.y = 0.f; lidarpoint.z = -heightlidar;
-        Clusters = ClusteringHandle.advertise<clustering::CoordinateList>("Clusters_temp", 1000);
+        Clusters = ClusteringHandle.advertise<clustering::CoordinateList>("Clusters", 1000);
         Clusters_pc = ClusteringHandle.advertise<pcl::PointCloud<pcl::PointXYZI>>("Clusters_PointCloud", 1000);
-        // Surrounding_pc = ClusteringHandle.advertise<pcl::PointCloud<pcl::PointXYZI>>("Surrounding_PointCloud", 1000);
+        Surrounding_pc = ClusteringHandle.advertise<pcl::PointCloud<pcl::PointXYZI>>("Surrounding_PointCloud", 1000);
         subground = ClusteringHandle.subscribe ("ground", 1, &Clustering::callbackground, this);
         sub = ClusteringHandle.subscribe ("ConeCloud", 1, &Clustering::callback, this);
     }
@@ -86,7 +86,7 @@ public:
         }
     }
     void callback(const sensor_msgs::PointCloud2ConstPtr& input){   
-        if (ground.size()==0) return;
+        // if (ground.size()==0) return;
         // if(line.size()!=0){ 
         clustering::CoordinateList Cluster;
         Cluster.header.stamp = ros::Time::now();
@@ -102,8 +102,8 @@ public:
         if (cloud->size()!= 0){
             pcl::PointCloud<pcl::PointXYZI>::Ptr cluster_pc (new pcl::PointCloud<pcl::PointXYZI>);
             cluster_pc->header.frame_id = lidarframe;
-            // pcl::PointCloud<pcl::PointXYZI>::Ptr surr_cloud (new pcl::PointCloud<pcl::PointXYZI>);
-            // surr_cloud->header.frame_id = lidarframe;
+            pcl::PointCloud<pcl::PointXYZI>::Ptr surr_cloud (new pcl::PointCloud<pcl::PointXYZI>);
+            surr_cloud->header.frame_id = lidarframe;
 
             for (pcl::PointXYZI point : cloud->points){
                 if (isfinite(point.x) && isfinite(point.y) && isfinite(point.z)){
@@ -148,7 +148,7 @@ public:
                             //     Clusters_Vector[index].maxheight = point;
                             // }
 
-                            // surr_cloud->push_back(point);
+                            surr_cloud->push_back(point);
                             break;
                         }
                     }
@@ -159,17 +159,18 @@ public:
                 }
             }
 
-            // Surrounding_pc.publish(*surr_cloud);
+            Surrounding_pc.publish(*surr_cloud);
 
             cluster_pc->width = Clusters_Vector.size();
             cluster_pc->height = 1;
             // cluster_pc->push_back(pcl::PointXYZI(0.f));
             float denominator = 1;
+            std::cout<<Clusters_Vector.size()<<std::endl;
             for (int index = 0; index < Clusters_Vector.size(); index++){
                 CustomCluster Iter_Cluster = Clusters_Vector[index];
                 if (Iter_Cluster.Avg.x == 0.0 && Iter_Cluster.Avg.y == 0.0 && Iter_Cluster.Avg.z == 0.0 ) continue;
                 int dist_sq = pow(Iter_Cluster.Avg.x, 2.0) + pow(Iter_Cluster.Avg.y, 2.0) + pow(Iter_Cluster.Avg.z, 2.0);
-                int expected_points = (3000)/((float)(dist_sq + 1)); //remove dist =0
+                int expected_points = (2000)/((float)(dist_sq + 1)); //remove dist =0
                 if (!(Iter_Cluster.Avg.x == 0 && Iter_Cluster.Avg.y ==0)){
                     float ratio = Iter_Cluster.Avg.y/abs(Iter_Cluster.Avg.x);
                     if ((ratio > tan(10) && ratio < tan(15)) || (ratio > tan(30) && ratio < tan(40))){
@@ -178,31 +179,29 @@ public:
                 }
                 
                 //checking cone distance from lu planes
-                int ringclus = pow(pow(Iter_Cluster.Avg.x, 2)+pow(Iter_Cluster.Avg.y, 2), 0.5)/ringlength;
-                float angleclus = atan2(Iter_Cluster.Avg.x, -Iter_Cluster.Avg.y) - M_PI/6;
-                int key = int((angleclus)/(sectorangle)) + int((2*M_PI*ringclus)/(3*sectorangle));
+                // int ringclus = pow(pow(Iter_Cluster.Avg.x, 2)+pow(Iter_Cluster.Avg.y, 2), 0.5)/ringlength;
+                // float angleclus = atan2(Iter_Cluster.Avg.x, -Iter_Cluster.Avg.y) - M_PI/6;
+                // int key = int((angleclus)/(sectorangle)) + int((2*M_PI*ringclus)/(3*sectorangle));
                 
-                denominator = pow(pow(ground[key][0], 2) + pow(ground[key][1], 2) + pow(ground[key][2], 2), 0.5);
-                float distance = abs(Iter_Cluster.Avg.x*ground[key][0] + Iter_Cluster.Avg.y*ground[key][1] + Iter_Cluster.Avg.z*ground[key][2] + ground[key][3])/denominator;
-                float minzfromground = abs(Iter_Cluster.minheight.x*ground[key][0] + Iter_Cluster.minheight.y*ground[key][1] + Iter_Cluster.minheight.z*ground[key][2] + ground[key][3])/denominator;
-                float maxzfromground = abs(Iter_Cluster.maxheight.x*ground[key][0] + Iter_Cluster.maxheight.y*ground[key][1] + Iter_Cluster.maxheight.z*ground[key][2] + ground[key][3])/denominator;
+                // denominator = pow(pow(ground[key][0], 2) + pow(ground[key][1], 2) + pow(ground[key][2], 2), 0.5);
+                // float distance = abs(Iter_Cluster.Avg.x*ground[key][0] + Iter_Cluster.Avg.y*ground[key][1] + Iter_Cluster.Avg.z*ground[key][2] + ground[key][3])/denominator;
+                // float minzfromground = abs(Iter_Cluster.minheight.x*ground[key][0] + Iter_Cluster.minheight.y*ground[key][1] + Iter_Cluster.minheight.z*ground[key][2] + ground[key][3])/denominator;
+                // float maxzfromground = abs(Iter_Cluster.maxheight.x*ground[key][0] + Iter_Cluster.maxheight.y*ground[key][1] + Iter_Cluster.maxheight.z*ground[key][2] + ground[key][3])/denominator;
 
 
                 if ( //checks
                 1
-                && (distance >=0.01 && distance < 0.5 )
-                && (Iter_Cluster.Avg.z + heightlidar < 0.7)
-                && (Iter_Cluster.Avg.z + heightlidar > 0.025)
-                // // // && (Iter_Cluster.Avg.z + heightlidar > MinHeight)
-                && (maxzfromground >= 0.02)
-                && (minzfromground <= 0.7 )
-                && (Iter_Cluster.clustersize < expected_points)
+                // && (distance >=0.04 && distance < 0.32 )
+                // && (Iter_Cluster.Avg.z + heightlidar < 1.5)
+                // // && (Iter_Cluster.Avg.z + heightlidar < 0.2)
+                // // && (Iter_Cluster.Avg.z + heightlidar > MinHeight)
+                // && (maxzfromground >= 0.1)
+                // && (minzfromground <= 0.22 )
+                // && (Iter_Cluster.clustersize < 1000)
                 // // && (Iter_Cluster.clustersize > 0.2 * expected_points)
                 // && ((Iter_Cluster.Right.y - Iter_Cluster.Left.y)*(Iter_Cluster.Right.y - Iter_Cluster.Left.y) + (Iter_Cluster.Right.x - Iter_Cluster.Left.x)*(Iter_Cluster.Right.x - Iter_Cluster.Left.x) < MaxWidth*MaxWidth)
                 // && ((Iter_Cluster.Back.y - Iter_Cluster.Front.y)*(Iter_Cluster.Back.y - Iter_Cluster.Front.y) + (Iter_Cluster.Back.x - Iter_Cluster.Front.x)*(Iter_Cluster.Back.x - Iter_Cluster.Front.x) < MaxLen*MaxLen)
                 && (Iter_Cluster.clustersize > MinPoints)
-                // && (abs(Iter_Cluster.Avg.y)<1.3 && 
-                && (Iter_Cluster.Avg.x <15)
                 ){
                     // cout<<expected_points<<" "<<Iter_Cluster.clustersize<<endl;
                     Cluster.size++;
@@ -240,13 +239,13 @@ public:
 private:
     ros::Publisher Clusters;
     ros::Publisher Clusters_pc;
-    // ros::Publisher Surrounding_pc;
+    ros::Publisher Surrounding_pc;
     ros::Subscriber sub;
     ros::Subscriber subground;
 };
 
 int main(int argc, char **argv){
-    ros::init(argc, argv, "custom");
+    ros::init(argc, argv, "customsim");
     ros::NodeHandle ClusteringHandle;
     Clustering node(ClusteringHandle);
     ros::spin();

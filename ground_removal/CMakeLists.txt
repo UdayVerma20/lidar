@@ -129,6 +129,9 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable(luphy luphy.cpp)
 target_link_libraries(luphy ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+# add_executable(lusim lusim.cpp)
+# target_link_libraries(lusim ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(amzphy amzphy.cpp)
 target_link_libraries(amzphy ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
